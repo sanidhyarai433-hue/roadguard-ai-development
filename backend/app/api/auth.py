@@ -3,7 +3,8 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from app.db import get_db
-from app.models import User, UserRole
+from app.models import User, UserRole, AuditLog
+from app.core.security import require_roles
 from app.core.security import create_access_token, hash_password, verify_password, current_user
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
@@ -54,3 +55,24 @@ def login(payload: LoginInput, db: Session = Depends(get_db)):
 @router.get("/me", response_model=UserOutput)
 def me(user: User = Depends(current_user)):
     return user
+
+
+class RoleUpdate(BaseModel):
+    role: str = Field(pattern="^(super_admin|government_authority|inspection_team|repair_team|citizen|ai_data_reviewer)$")
+
+
+@router.patch("/users/{user_id}/role", response_model=UserOutput)
+def update_user_role(user_id: int, payload: RoleUpdate,
+                     actor: User = Depends(require_roles(UserRole.SUPER_ADMIN.value)),
+                     db: Session = Depends(get_db)):
+    target = db.get(User, user_id)
+    if target is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    previous_role = target.role
+    target.role = payload.role
+    db.add(AuditLog(actor_user_id=actor.id, action="user.role.updated",
+                    resource_type="user", resource_id=str(target.id),
+                    details=f"role changed from {previous_role} to {payload.role}"))
+    db.commit()
+    db.refresh(target)
+    return target
