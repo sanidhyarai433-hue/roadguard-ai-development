@@ -1,6 +1,7 @@
 'use client'
 
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import AccessPortal from './access-portal'
 import {
   Activity, AlertTriangle, ArrowDownRight, ArrowRight, ArrowUpRight, Bell, Check,
   ChevronDown, ChevronRight, CircleHelp, ClipboardCheck, Clock3, CloudRain,
@@ -29,6 +30,8 @@ function Badge({ children, tone = 'neutral' }: { children: React.ReactNode; tone
 }
 
 export default function RoadguardApp() {
+  const [session, setSession] = useState<any>(null)
+  const [sessionReady, setSessionReady] = useState(false)
   const [active, setActive] = useState('Command center')
   const [incidents, setIncidents] = useState(initialIncidents)
   const [severityFilter, setSeverityFilter] = useState('All severity')
@@ -40,6 +43,8 @@ export default function RoadguardApp() {
   const [mobileNav, setMobileNav] = useState(false)
   const [notice, setNotice] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
+  useEffect(() => { const saved = window.localStorage.getItem('roadguard_session'); if (saved) { try { setSession(JSON.parse(saved)) } catch { window.localStorage.removeItem('roadguard_session') } }; setSessionReady(true) }, [])
+  function signOut() { window.localStorage.removeItem('roadguard_session'); setSession(null); setActive('Command center') }
 
   const visibleIncidents = useMemo(() => incidents.filter((item) => {
     const matchesSeverity = severityFilter === 'All severity' || item.severity === severityFilter
@@ -88,6 +93,8 @@ export default function RoadguardApp() {
     URL.revokeObjectURL(url)
   }
 
+  if (!sessionReady) return <div className="auth-loading">Loading secure sign-in…</div>
+  if (!session) return <AccessPortal onAuthenticated={(next: any) => { window.localStorage.setItem('roadguard_session', JSON.stringify(next)); setSession(next) }} />
   return (
     <div className="app-shell">
       <aside className={`sidebar ${mobileNav ? 'sidebar-open' : ''}`}>
@@ -110,7 +117,7 @@ export default function RoadguardApp() {
       <main className="main-area">
         <header className="topbar">
           <div className="topbar-left"><button className="mobile-menu icon-button" aria-label="Open navigation" onClick={() => setMobileNav(true)}><Menu size={19} /></button><div className="crumb"><span>Operations</span><ChevronRight size={14} /><strong>{active}</strong></div></div>
-          <div className="topbar-actions"><span className="live-status"><span className="status-dot" />SYSTEM LIVE</span><button className="icon-button notification-button" aria-label="Notifications" onClick={() => notify('You’re all caught up on critical alerts.')}><Bell size={18} /><i /></button><span className="topbar-divider" /><button className="date-button" onClick={() => setRange(range === 'Last 7 days' ? 'Last 30 days' : 'Last 7 days')}>{range}<ChevronDown size={14} /></button><button className="user-avatar" aria-label="User profile">AS</button></div>
+          <div className="topbar-actions"><span className="live-status"><span className="status-dot" />SYSTEM LIVE</span><button className="icon-button notification-button" aria-label="Notifications" onClick={() => notify('You’re all caught up on critical alerts.')}><Bell size={18} /><i /></button><span className="topbar-divider" /><button className="date-button" onClick={() => setRange(range === 'Last 7 days' ? 'Last 30 days' : 'Last 7 days')}>{range}<ChevronDown size={14} /></button><button className="user-avatar" aria-label="Sign out" onClick={signOut}>{session.user.full_name?.slice(0,2).toUpperCase() || "U"}</button></div>
         </header>
 
         {active === 'Command center' ? <Dashboard incidents={incidents} visibleIncidents={visibleIncidents} severityFilter={severityFilter} setSeverityFilter={setSeverityFilter} search={search} setSearch={setSearch} range={range} setRange={setRange} downloadCsv={downloadCsv} advanceStatus={advanceStatus} selectNav={selectNav} notify={notify} /> : active === 'Inspection lab' ? <InspectionLab file={file} setFile={setFile} inputRef={inputRef} handleFile={handleFile} notify={notify} analysis={analysis} setAnalysis={setAnalysis} analyzing={analyzing} setAnalyzing={setAnalyzing} /> : <WorkflowPage active={active} incidents={visibleIncidents} selectNav={selectNav} downloadCsv={downloadCsv} advanceStatus={advanceStatus} notify={notify} />}
