@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes import router
 from app.api.auth import router as auth_router
+from app.api.inference import router as inference_router
 from app.db import init_db
 
 
@@ -48,3 +49,4 @@ def readiness():
 
 app.include_router(router, prefix="/api/v1")
 app.include_router(auth_router, prefix="/api/v1")
+app.include_router(inference_router, prefix="/api/v1")
