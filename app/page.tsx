@@ -1,5 +1,5 @@
-import RoadguardApp from '@/components/roadguard-app'
+import RoadguardLanding from '@/components/roadguard-landing'
 
 export default function Page() {
-  return <RoadguardApp />
+  return <RoadguardLanding />
 }
