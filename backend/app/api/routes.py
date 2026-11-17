@@ -64,7 +64,7 @@ def create_incident(payload: IncidentCreate, db: Session = Depends(get_db), acto
 
 
 @router.get("/incidents", response_model=list[IncidentOut])
-def list_incidents(db: Session = Depends(get_db), limit: int = Query(default=100, ge=1, le=500)):
+def list_incidents(db: Session = Depends(get_db), limit: int = Query(default=100, ge=1, le=500), actor = Depends(require_roles(UserRole.SUPER_ADMIN.value, UserRole.GOVERNMENT_AUTHORITY.value, UserRole.INSPECTION_TEAM.value, UserRole.REPAIR_TEAM.value, UserRole.AI_DATA_REVIEWER.value))):
     return list(db.scalars(select(IncidentReport).order_by(IncidentReport.id.desc()).limit(limit)))
 
 
