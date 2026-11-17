@@ -161,7 +161,7 @@ function Metric({ label, value, delta, detail, icon: Icon, color, trend }: any) 
 function InspectionLab({ file, setFile, inputRef, handleFile, notify, analysis, setAnalysis, analyzing, setAnalyzing }: any) {
   async function startAnalysis() {
     if (!file || analyzing) return
-    const apiBase = (process.env.NEXT_PUBLIC_API_BASE_URL || '').replace(/\\/$/, '')
+    const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || ''
     if (!apiBase) { notify('Inference API is not configured. Set NEXT_PUBLIC_API_BASE_URL to your FastAPI URL.'); return }
     setAnalyzing(true)
     setAnalysis(null)
