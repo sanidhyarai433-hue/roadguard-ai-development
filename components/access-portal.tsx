@@ -4,6 +4,8 @@ import { Shield, ShieldCheck, MapPin, ArrowRight } from 'lucide-react'
 
 export default function AccessPortal({ onAuthenticated }: { onAuthenticated: (session:any)=>void }) {
   const [kind,setKind]=useState<'resident'|'authority'>('resident')
+  const [mode,setMode]=useState<'login'|'register'>('login')
+  const [fullName,setFullName]=useState('')
   const [email,setEmail]=useState('')
   const [password,setPassword]=useState('')
   const [error,setError]=useState('')
@@ -13,6 +15,12 @@ export default function AccessPortal({ onAuthenticated }: { onAuthenticated: (se
     const api=process.env.NEXT_PUBLIC_API_BASE_URL || ''
     if(!api){setError('Authentication API is not configured.');setBusy(false);return}
     try {
+      if(mode==='register') {
+        if(kind!=='resident') throw new Error('Authority accounts are created by your organization administrator.')
+        const registration=await fetch(api+'/api/v1/auth/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({full_name:fullName,email,password})})
+        const registrationData=await registration.json()
+        if(!registration.ok) throw new Error(registrationData.detail || 'Registration failed')
+      }
       const response=await fetch(api+'/api/v1/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password})})
       const data=await response.json()
       if(!response.ok) throw new Error(data.detail || 'Sign in failed')
@@ -39,12 +47,13 @@ export default function AccessPortal({ onAuthenticated }: { onAuthenticated: (se
         <h2>{kind==='resident'?'Resident sign in':'Authority sign in'}</h2>
         <p>{kind==='resident'?'For people reporting local road issues.':'For authorized municipal and field operations teams.'}</p>
         <form className="access-form" onSubmit={submit}>
+          {mode==='register'&&<label>Full name<input required minLength={2} value={fullName} onChange={e=>setFullName(e.target.value)} placeholder="Your full name" autoComplete="name"/></label>}
           <label>Email<input required type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder={kind==='resident'?'you@example.com':'name@municipality.gov'} autoComplete="username"/></label>
-          <label>Password<input required type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="Your password" autoComplete="current-password"/></label>
+          <label>Password<input required minLength={mode==='register'?12:1} type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="Your password" autoComplete="current-password"/></label>
           {error&&<div className="access-error" role="alert">{error}</div>}
-          <button className="access-submit" disabled={busy}>{busy?'Signing in…':kind==='resident'?'Sign in as resident':'Enter authority portal'}<ArrowRight size={16}/></button>
+          <button className="access-submit" disabled={busy}>{busy?'Please wait…':mode==='register'?'Create resident account':kind==='resident'?'Sign in as resident':'Enter authority portal'}<ArrowRight size={16}/></button>
         </form>
-        <div className="access-foot">{kind==='resident'?'New resident accounts must be registered through the resident registration flow.':'Authority accounts are provisioned by your organization administrator.'}</div>
+        <div className="access-foot">{kind==='resident' ? (mode==='login' ? <>New here? <button type="button" onClick={()=>{setMode('register');setError('')}}>Create a resident account</button></> : <>Already registered? <button type="button" onClick={()=>{setMode('login');setError('')}}>Sign in</button></>) : 'Authority accounts are provisioned by your organization administrator.'}</div>
         <div className="access-security"><Shield size={14}/> Role-checked access · Account permissions determine portal access</div>
       </section>
     </div>
