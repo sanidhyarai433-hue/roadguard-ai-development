@@ -49,3 +49,13 @@ Supported roles: `super_admin`, `government_authority`, `inspection_team`, `repa
 Set a unique, high-entropy `JWT_SECRET` before deployment. The development fallback secret is not suitable for production. Access tokens expire after `ACCESS_TOKEN_MINUTES` (30 by default).
 
 The current milestone includes identity and role primitives. It does not yet claim complete per-resource authorization policies, password reset, refresh-token rotation, email verification, or production identity-provider integration.
+
+
+## Road-image inference and training
+
+- `GET /api/v1/model/status` checks whether `ROAD_DAMAGE_MODEL_PATH` points to a weights file.
+- `POST /api/v1/inspections/analyze` accepts an image multipart field and runs Ultralytics YOLO inference. It returns bounding boxes, class names, and confidence values.
+- `backend/training/README.md` explains dataset preparation and training with `python training/train.py`.
+- Set `ROAD_DAMAGE_MODEL_PATH` on the API host and `NEXT_PUBLIC_API_BASE_URL` on the frontend build to the FastAPI service origin. Configure backend `CORS_ORIGINS` to include the frontend origin.
+
+No trained weights are committed. Until a trained `best.pt` is supplied and configured, the inference endpoint intentionally returns HTTP 503 rather than fabricated detections.
