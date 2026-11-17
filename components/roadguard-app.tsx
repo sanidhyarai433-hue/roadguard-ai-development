@@ -1,6 +1,7 @@
 'use client'
 
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import AccessPortal from './access-portal'
 import {
   Activity, AlertTriangle, ArrowDownRight, ArrowRight, ArrowUpRight, Bell, Check,
   ChevronDown, ChevronRight, CircleHelp, ClipboardCheck, Clock3, CloudRain,
@@ -29,15 +30,21 @@ function Badge({ children, tone = 'neutral' }: { children: React.ReactNode; tone
 }
 
 export default function RoadguardApp() {
+  const [session, setSession] = useState<any>(null)
+  const [sessionReady, setSessionReady] = useState(false)
   const [active, setActive] = useState('Command center')
   const [incidents, setIncidents] = useState(initialIncidents)
   const [severityFilter, setSeverityFilter] = useState('All severity')
   const [search, setSearch] = useState('')
   const [range, setRange] = useState('Last 7 days')
   const [file, setFile] = useState<File | null>(null)
+  const [analysis, setAnalysis] = useState<any>(null)
+  const [analyzing, setAnalyzing] = useState(false)
   const [mobileNav, setMobileNav] = useState(false)
   const [notice, setNotice] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
+  useEffect(() => { const saved = window.localStorage.getItem('roadguard_session'); if (saved) { try { setSession(JSON.parse(saved)) } catch { window.localStorage.removeItem('roadguard_session') } }; setSessionReady(true) }, [])
+  function signOut() { window.localStorage.removeItem('roadguard_session'); setSession(null); setActive('Command center') }
 
   const visibleIncidents = useMemo(() => incidents.filter((item) => {
     const matchesSeverity = severityFilter === 'All severity' || item.severity === severityFilter
@@ -86,6 +93,8 @@ export default function RoadguardApp() {
     URL.revokeObjectURL(url)
   }
 
+  if (!sessionReady) return <div className="auth-loading">Loading secure sign-in…</div>
+  if (!session) return <AccessPortal onAuthenticated={(next: any) => { window.localStorage.setItem('roadguard_session', JSON.stringify(next)); setSession(next) }} />
   return (
     <div className="app-shell">
       <aside className={`sidebar ${mobileNav ? 'sidebar-open' : ''}`}>
@@ -108,10 +117,10 @@ export default function RoadguardApp() {
       <main className="main-area">
         <header className="topbar">
           <div className="topbar-left"><button className="mobile-menu icon-button" aria-label="Open navigation" onClick={() => setMobileNav(true)}><Menu size={19} /></button><div className="crumb"><span>Operations</span><ChevronRight size={14} /><strong>{active}</strong></div></div>
-          <div className="topbar-actions"><span className="live-status"><span className="status-dot" />SYSTEM LIVE</span><button className="icon-button notification-button" aria-label="Notifications" onClick={() => notify('You’re all caught up on critical alerts.')}><Bell size={18} /><i /></button><span className="topbar-divider" /><button className="date-button" onClick={() => setRange(range === 'Last 7 days' ? 'Last 30 days' : 'Last 7 days')}>{range}<ChevronDown size={14} /></button><button className="user-avatar" aria-label="User profile">AS</button></div>
+          <div className="topbar-actions"><span className="live-status"><span className="status-dot" />SYSTEM LIVE</span><button className="icon-button notification-button" aria-label="Notifications" onClick={() => notify('You’re all caught up on critical alerts.')}><Bell size={18} /><i /></button><span className="topbar-divider" /><button className="date-button" onClick={() => setRange(range === 'Last 7 days' ? 'Last 30 days' : 'Last 7 days')}>{range}<ChevronDown size={14} /></button><button className="user-avatar" aria-label="Sign out" onClick={signOut}>{session.user.full_name?.slice(0,2).toUpperCase() || "U"}</button></div>
         </header>
 
-        {active === 'Command center' ? <Dashboard incidents={incidents} visibleIncidents={visibleIncidents} severityFilter={severityFilter} setSeverityFilter={setSeverityFilter} search={search} setSearch={setSearch} range={range} setRange={setRange} downloadCsv={downloadCsv} advanceStatus={advanceStatus} selectNav={selectNav} notify={notify} /> : active === 'Inspection lab' ? <InspectionLab file={file} setFile={setFile} inputRef={inputRef} handleFile={handleFile} notify={notify} /> : <WorkflowPage active={active} incidents={visibleIncidents} selectNav={selectNav} downloadCsv={downloadCsv} advanceStatus={advanceStatus} notify={notify} />}
+        {active === 'Command center' ? <Dashboard incidents={incidents} visibleIncidents={visibleIncidents} severityFilter={severityFilter} setSeverityFilter={setSeverityFilter} search={search} setSearch={setSearch} range={range} setRange={setRange} downloadCsv={downloadCsv} advanceStatus={advanceStatus} selectNav={selectNav} notify={notify} /> : active === 'Inspection lab' ? <InspectionLab file={file} setFile={setFile} inputRef={inputRef} handleFile={handleFile} notify={notify} analysis={analysis} setAnalysis={setAnalysis} analyzing={analyzing} setAnalyzing={setAnalyzing} /> : <WorkflowPage active={active} incidents={visibleIncidents} selectNav={selectNav} downloadCsv={downloadCsv} advanceStatus={advanceStatus} notify={notify} />}
       </main>
       {notice && <div className="toast" role="status"><Check size={16} />{notice}<button aria-label="Dismiss notification" onClick={() => setNotice('')}><X size={15} /></button></div>}
     </div>
@@ -156,8 +165,25 @@ function Metric({ label, value, delta, detail, icon: Icon, color, trend }: any) 
   return <article className="metric-card"><div className="metric-top"><span>{label}</span><span className={`metric-icon ${color}`}><Icon size={17} /></span></div><div className="metric-value">{value}</div><div className="metric-foot"><span className={`metric-delta ${color}`}>{trend === 'up' ? <ArrowUpRight size={13} /> : <ArrowDownRight size={13} />}{delta}</span><span>{detail}</span></div></article>
 }
 
-function InspectionLab({ file, setFile, inputRef, handleFile, notify }: any) {
-  return <div className="page-content"><div className="page-heading"><div><div className="eyebrow"><span className="eyebrow-line" />FIELD OPERATIONS</div><h1>Inspection lab</h1><p className="page-subtitle">Review road imagery and capture inspection evidence.</p></div><button className="button-secondary" onClick={() => notify('No saved inspection records in the demo workspace.')}><Clock3 size={15} />Inspection history</button></div><div className="notice-bar"><span className="notice-icon"><Sparkles size={16} /></span><span><strong>Inference adapter: demo</strong><span className="notice-copy">Uploads are previewed locally. No AI model is connected and no prediction is generated.</span></span><Badge tone="amber">NOT A REAL PREDICTION</Badge></div><div className="inspection-layout"><section className="panel upload-panel"><div className="panel-header"><div><h2>New road inspection</h2><p>Upload an image to start a review session</p></div><span className="step-number">01 / 03</span></div><button className={`upload-zone ${file ? 'has-file' : ''}`} onClick={() => inputRef.current?.click()} onDragOver={(e: React.DragEvent) => e.preventDefault()} onDrop={(e: React.DragEvent) => { e.preventDefault(); handleFile(e.dataTransfer.files?.[0]) }}><input ref={inputRef} hidden type="file" accept="image/jpeg,image/png,image/webp" onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleFile(e.target.files?.[0])} />{file ? <><span className="upload-icon"><FileImage size={24} /></span><strong>{file.name}</strong><span>{(file.size / 1024 / 1024).toFixed(1)} MB · local preview only</span><span className="upload-change">Choose a different image</span></> : <><span className="upload-icon"><Upload size={23} /></span><strong>Drop road imagery here</strong><span>or <em>browse files</em> from your device</span><small>JPG, PNG, WEBP · up to 12 MB</small></>}</button>{file && <div className="image-preview"><img src={URL.createObjectURL(file)} alt="Selected road inspection image preview" /><div className="preview-overlay"><Badge tone="amber">LOCAL PREVIEW</Badge><span>Image is not stored or sent to a model</span></div></div>}<div className="form-fields"><label>Inspection source<select defaultValue="Field inspection team"><option>Field inspection team</option><option>Citizen submission</option><option>Dashcam capture</option><option>Contractor evidence</option></select></label><label>Road or segment<input placeholder="Search road name (optional)" /></label><label>Inspector notes<textarea placeholder="Add surface observations, weather, or nearby landmarks..." rows={3} /></label></div><div className="form-footer"><span><ShieldCheck size={14} /> Uploads stay in this browser session.</span><button className="button-primary" disabled={!file} onClick={() => notify('Demo adapter is not connected. Image is ready for a future inference service.')}><Sparkles size={16} />Start analysis</button></div></section><aside className="inspection-side"><div className="panel side-info"><span className="side-info-icon"><CircleHelp size={18} /></span><h3>Before you inspect</h3><p>Record a clear, well-lit image of the road surface. Add GPS and segment information through a connected inspection workflow.</p><ul><li><Check size={14} />Capture surface context</li><li><Check size={14} />Avoid motion blur</li><li><Check size={14} />Do not infer depth from a single image</li></ul></div><div className="panel categories-card"><h3>Supported damage classes</h3><div><Badge>D00</Badge><span>Longitudinal crack</span></div><div><Badge>D10</Badge><span>Transverse crack</span></div><div><Badge>D20</Badge><span>Alligator crack</span></div><div><Badge>D40</Badge><span>Pothole</span></div><p>Severity and model confidence are assessed separately.</p></div><div className="model-card"><span><Sparkles size={15} /> MODEL STATUS</span><strong>Waiting for inference service</strong><small>Mock adapter intentionally disabled</small></div></aside></div></div>
+function InspectionLab({ file, setFile, inputRef, handleFile, notify, analysis, setAnalysis, analyzing, setAnalyzing }: any) {
+  async function startAnalysis() {
+    if (!file || analyzing) return
+    const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || ''
+    if (!apiBase) { notify('Inference API is not configured. Set NEXT_PUBLIC_API_BASE_URL to your FastAPI URL.'); return }
+    setAnalyzing(true)
+    setAnalysis(null)
+    try {
+      const body = new FormData()
+      body.append('image', file)
+      const response = await fetch(`${apiBase}/api/v1/inspections/analyze`, { method: 'POST', body })
+      const payload = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(payload.detail || `Inference request failed (${response.status})`)
+      setAnalysis(payload)
+      notify(`Analysis completed: ${payload.detection_count} detection(s). Human review required.`)
+    } catch (error: any) { notify(error?.message || 'Could not reach the inference service.') }
+    finally { setAnalyzing(false) }
+  }
+  return <div className="page-content"><div className="page-heading"><div><div className="eyebrow"><span className="eyebrow-line" />FIELD OPERATIONS</div><h1>Inspection lab</h1><p className="page-subtitle">Review road imagery and capture inspection evidence.</p></div><button className="button-secondary" onClick={() => notify('No saved inspection records in the demo workspace.')}><Clock3 size={15} />Inspection history</button></div><div className="notice-bar"><span className="notice-icon"><Sparkles size={16} /></span><span><strong>YOLO inference adapter</strong><span className="notice-copy">Images are sent to the configured FastAPI inference service when you start analysis.</span></span><Badge tone="amber">MODEL INFERENCE</Badge></div><div className="inspection-layout"><section className="panel upload-panel"><div className="panel-header"><div><h2>New road inspection</h2><p>Upload an image to start a review session</p></div><span className="step-number">01 / 03</span></div><button className={`upload-zone ${file ? 'has-file' : ''}`} onClick={() => inputRef.current?.click()} onDragOver={(e: React.DragEvent) => e.preventDefault()} onDrop={(e: React.DragEvent) => { e.preventDefault(); handleFile(e.dataTransfer.files?.[0]) }}><input ref={inputRef} hidden type="file" accept="image/jpeg,image/png,image/webp" onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleFile(e.target.files?.[0])} />{file ? <><span className="upload-icon"><FileImage size={24} /></span><strong>{file.name}</strong><span>{(file.size / 1024 / 1024).toFixed(1)} MB · local preview only</span><span className="upload-change">Choose a different image</span></> : <><span className="upload-icon"><Upload size={23} /></span><strong>Drop road imagery here</strong><span>or <em>browse files</em> from your device</span><small>JPG, PNG, WEBP · up to 12 MB</small></>}</button>{file && <div className="image-preview"><img src={URL.createObjectURL(file)} alt="Selected road inspection image preview" /><div className="preview-overlay"><Badge tone="amber">LOCAL PREVIEW</Badge><span>Preview only until you start analysis</span></div></div>}<div className="form-fields"><label>Inspection source<select defaultValue="Field inspection team"><option>Field inspection team</option><option>Citizen submission</option><option>Dashcam capture</option><option>Contractor evidence</option></select></label><label>Road or segment<input placeholder="Search road name (optional)" /></label><label>Inspector notes<textarea placeholder="Add surface observations, weather, or nearby landmarks..." rows={3} /></label></div><div className="form-footer"><span><ShieldCheck size={14} /> Uploads stay in this browser session.</span><button className="button-primary" disabled={!file || analyzing} onClick={startAnalysis}><Sparkles size={16} />{analyzing ? 'Analyzing…' : 'Start analysis'}</button></div></section>{analysis && <section className="panel analysis-results"><div className="panel-header"><div><h2>Model detections</h2><p>{analysis.detection_count} detection(s) · {analysis.model}</p></div><Badge tone="teal">INFERENCE COMPLETE</Badge></div>{analysis.detections.length ? <div className="table-scroll"><table><thead><tr><th>CLASS</th><th>CONFIDENCE</th><th>BOUNDING BOX (X1, Y1, X2, Y2)</th></tr></thead><tbody>{analysis.detections.map((d: any, i: number) => <tr key={i}><td><strong>{d.class_name}</strong><small>Class ID {d.class_id}</small></td><td>{(d.confidence * 100).toFixed(1)}%</td><td>{d.bbox_xyxy.join(', ')}</td></tr>)}</tbody></table></div> : <p>No objects detected at the configured confidence threshold.</p>}<p className="notice-copy">{analysis.note}</p></section>}<aside className="inspection-side"><div className="panel side-info"><span className="side-info-icon"><CircleHelp size={18} /></span><h3>Before you inspect</h3><p>Record a clear, well-lit image of the road surface. Add GPS and segment information through a connected inspection workflow.</p><ul><li><Check size={14} />Capture surface context</li><li><Check size={14} />Avoid motion blur</li><li><Check size={14} />Do not infer depth from a single image</li></ul></div><div className="panel categories-card"><h3>Supported damage classes</h3><div><Badge>D00</Badge><span>Longitudinal crack</span></div><div><Badge>D10</Badge><span>Transverse crack</span></div><div><Badge>D20</Badge><span>Alligator crack</span></div><div><Badge>D40</Badge><span>Pothole</span></div><p>Severity and model confidence are assessed separately.</p></div><div className="model-card"><span><Sparkles size={15} /> MODEL STATUS</span><strong>YOLO model availability is checked by the API</strong><small>No predictions are generated without trained weights</small></div></aside></div></div>
 }
 
 function WorkflowPage({ active, incidents, selectNav, downloadCsv, advanceStatus, notify }: any) {

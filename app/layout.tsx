@@ -3,8 +3,8 @@ import type { Metadata, Viewport } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'ROADGUARD AI — Road Infrastructure Intelligence',
-  description: 'A municipal road operations command center for infrastructure risk, inspection, and maintenance workflows.',
+  title: 'ROADGUARD AI — Make Road Damage Visible',
+  description: 'Road infrastructure intelligence for citizen reporting, AI-assisted road inspection, risk prioritisation and maintenance coordination.',
   generator: 'v0.app',
   icons: {
     icon: [
