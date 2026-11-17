@@ -1,4 +1,5 @@
-from datetime import datetime, timezone\nfrom fastapi import APIRouter, Depends, HTTPException, Query\nfrom pydantic import BaseModel, Field
+from datetime import datetime, timezone
+from fastapi import APIRouter, Depends, HTTPException, Query\nfrom pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
