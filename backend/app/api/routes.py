@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
-from fastapi import APIRouter, Depends, HTTPException, Query\nfrom pydantic import BaseModel, Field
+from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -86,7 +87,7 @@ def create_maintenance_job(payload: MaintenanceCreate, db: Session = Depends(get
     incident = db.get(IncidentReport, payload.incident_id)
     if incident is None:
         raise HTTPException(status_code=404, detail="Incident not found")
-    job = MaintenanceJob(**payload.model_dump(), priority=payload.priority)
+    job = MaintenanceJob(**payload.model_dump())
     db.add(job)
     db.flush()
     db.add(AuditLog(actor_user_id=actor.id, action="maintenance.job.created",
